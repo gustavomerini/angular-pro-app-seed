@@ -1,7 +1,8 @@
 const path = require('path');
 const webpack = require('webpack');
 const typescript = require('typescript');
-const { AotPlugin } = require('@ngtools/webpack');
+const { AngularCompilerPlugin } = require('@ngtools/webpack');
+const UglifyJsPlugin = require("uglifyjs-webpack-plugin");
 
 const rules = [
   { test: /\.html$/, loader: 'html-loader' },
@@ -15,18 +16,52 @@ const plugins = [
       'NODE_ENV': JSON.stringify(process.env.NODE_ENV)
     }
   }),
-  new webpack.optimize.CommonsChunkPlugin({
-    name: 'vendor',
-    minChunks: (module) => module.context && /node_modules/.test(module.context)
-  })
+  // new webpack.optimize.CommonsChunkPlugin({
+  //   name: 'vendor',
+  //   minChunks: (module) => module.context && /node_modules/.test(module.context)
+  // }),
 ];
+
+const optimization = {
+    minimizer: [
+      new UglifyJsPlugin({
+        uglifyOptions: {
+          sourceMap: true,
+          beautify: false,
+          compress: {
+            unused: true,
+            dead_code: true,
+            drop_debugger: true,
+            conditionals: true,
+            evaluate: true,
+            drop_console: true,
+            sequences: true,
+            booleans: true,
+            warnings: false
+          },
+          comments: false
+        }
+      })
+    ],
+    runtimeChunk: "single", // enable "runtime" chunk
+    splitChunks: {
+      cacheGroups: {
+        vendor: {
+          test: /[\\/]node_modules[\\/]/,
+          name: "vendor",
+          chunks: "all"
+        }
+      }
+    }
+  }
+
 
 if (process.env.NODE_ENV === 'production') {
   rules.push({
     test: /\.ts$/, loaders: ['@ngtools/webpack']
   });
   plugins.push(
-    new AotPlugin({
+    new AngularCompilerPlugin({
       tsConfigPath: './tsconfig.json',
       entryModule: 'src/app/app.module#AppModule'
     }),
@@ -34,26 +69,6 @@ if (process.env.NODE_ENV === 'production') {
       minimize: true,
       debug: false
     }),
-    new webpack.optimize.UglifyJsPlugin({
-      sourceMap: true,
-      beautify: false,
-      mangle: {
-        screw_ie8: true
-      },
-      compress: {
-        unused: true,
-        dead_code: true,
-        drop_debugger: true,
-        conditionals: true,
-        evaluate: true,
-        drop_console: true,
-        sequences: true,
-        booleans: true,
-        screw_ie8: true,
-        warnings: false
-      },
-      comments: false
-    })
   );
 } else {
   rules.push({
@@ -115,5 +130,6 @@ module.exports = {
       'node_modules'
     ]
   },
-  plugins
+  plugins,
+  optimization
 };
